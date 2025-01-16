@@ -1,4 +1,3 @@
-
 import { Character, ModelProviderName, settings, validateCharacterConfig } from "@elizaos/core";
 import fs from "fs";
 import path from "path";
@@ -9,7 +8,21 @@ export function parseArguments(): {
   characters?: string;
 } {
   try {
-    return yargs(process.argv.slice(2))
+    console.log("Raw argv:", process.argv);
+    // Remove the first two arguments (node and script path) and any '--' argument
+    const args = process.argv
+      .slice(2)
+      .filter(arg => arg !== '--')
+      .map(arg => {
+        // Convert --character=value to --character value format
+        if (arg.startsWith('--character=')) {
+          return arg.replace('--character=', '--character ').split(' ');
+        }
+        return arg;
+      })
+      .flat();
+
+    const parsed = yargs(args)
       .option("character", {
         type: "string",
         description: "Path to the character JSON file",
@@ -19,6 +32,9 @@ export function parseArguments(): {
         description: "Comma separated list of paths to character JSON files",
       })
       .parseSync();
+    
+    console.log("Parsed args:", parsed);
+    return parsed;
   } catch (error) {
     console.error("Error parsing arguments:", error);
     return {};

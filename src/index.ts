@@ -14,7 +14,6 @@ import net from "net";
 import path from "path";
 import { fileURLToPath } from "url";
 import { initializeDbCache } from "./cache/index.ts";
-import { character } from "./character.ts";
 import { startChat } from "./chat/index.ts";
 import { initializeClients } from "./clients/index.ts";
 import {
@@ -132,12 +131,16 @@ const startAgents = async () => {
   const args = parseArguments();
 
   let charactersArg = args.characters || args.character;
-  let characters = [character];
+  let characters: Character[] = [];
 
-  console.log("charactersArg", charactersArg);
   if (charactersArg) {
     characters = await loadCharacters(charactersArg);
+  } else {
+    const { character } = await import("./character.ts");
+    characters = [character];
   }
+
+  console.log("charactersArg", charactersArg);
   console.log("characters", characters);
   try {
     for (const character of characters) {
