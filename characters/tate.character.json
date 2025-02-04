@@ -1,7 +1,7 @@
 {
   "name": "tate",
   "clients": [],
-  "modelProvider": "anthropic",
+  "modelProvider": "openrouter",
   "settings": {
       "secrets": {},
       "voice": {
