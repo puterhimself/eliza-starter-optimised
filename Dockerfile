@@ -58,4 +58,4 @@ COPY --from=builder /app/pnpm-lock.yaml /app/
 
 EXPOSE 3000
 # Set the command to run the application with the tate character
-CMD ["pnpm", "start", "--character=./characters/eliza.character.json"]
+CMD ["pnpm", "start"]

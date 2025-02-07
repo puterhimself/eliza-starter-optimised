@@ -1,119 +1,140 @@
-import { Character, ModelProviderName, settings, validateCharacterConfig } from "@elizaos/core";
-import fs from "fs";
-import path from "path";
+import {
+	type Character,
+	ModelProviderName,
+	settings,
+	validateCharacterConfig,
+} from "@elizaos/core";
+// import fs from "fs";
+// import path from "path";
 import yargs from "yargs";
 
 export function parseArguments(): {
-  character?: string;
-  characters?: string;
+	character?: string;
+	characters?: string;
 } {
-  try {
-    console.log("Raw argv:", process.argv);
-    // Remove the first two arguments (node and script path) and any '--' argument
-    const args = process.argv
-      .slice(2)
-      .filter(arg => arg !== '--')
-      .map(arg => {
-        // Convert --character=value to --character value format
-        if (arg.startsWith('--character=')) {
-          return arg.replace('--character=', '--character ').split(' ');
-        }
-        return arg;
-      })
-      .flat();
+	try {
+		console.log("Raw argv:", process.argv);
+		// Remove the first two arguments (node and script path) and any '--' argument
+		const args = process.argv
+			.slice(2)
+			.filter((arg) => arg !== "--")
+			.flatMap((arg) => {
+				// Convert --character=value to --character value format
+				if (arg.startsWith("--character=")) {
+					return arg.replace("--character=", "--character ").split(" ");
+				}
+				return arg;
+			});
 
-    const parsed = yargs(args)
-      .option("character", {
-        type: "string",
-        description: "Path to the character JSON file",
-      })
-      .option("characters", {
-        type: "string",
-        description: "Comma separated list of paths to character JSON files",
-      })
-      .parseSync();
-    
-    console.log("Parsed args:", parsed);
-    return parsed;
-  } catch (error) {
-    console.error("Error parsing arguments:", error);
-    return {};
-  }
+		const parsed = yargs(args)
+			.option("character", {
+				type: "string",
+				description: "Path to the character JSON file",
+			})
+			.option("characters", {
+				type: "string",
+				description: "Comma separated list of paths to character JSON files",
+			})
+			.parseSync();
+
+		console.log("Parsed args:", parsed);
+		return parsed;
+	} catch (error) {
+		console.error("Error parsing arguments:", error);
+		return {};
+	}
 }
 
 export async function loadCharacters(
-  charactersArg: string
+	charactersArg?: string,
 ): Promise<Character[]> {
-  let characterPaths = charactersArg?.split(",").map((filePath) => {
-    if (path.basename(filePath) === filePath) {
-      filePath = "../characters/" + filePath;
-    }
-    return path.resolve(process.cwd(), filePath.trim());
-  });
+	const loadedCharacters: Character[] = [];
 
-  const loadedCharacters = [];
+	// First try to load from CHARACTER_JSON environment variable
+	if (process.env.CHARACTER_JSON) {
+		try {
+			console.log(
+				"Loading character from CHARACTER_JSON env:",
+				process.env.CHARACTER_JSON,
+			);
+			const character = JSON.parse(process.env.CHARACTER_JSON) as Character;
+			validateCharacterConfig(character);
+			loadedCharacters.push(character);
+			return loadedCharacters;
+		} catch (e) {
+			console.error(`Error loading character from CHARACTER_JSON env: ${e}`);
+			process.exit(1);
+		}
+	}
 
-  if (characterPaths?.length > 0) {
-    for (const path of characterPaths) {
-      try {
-        const character = JSON.parse(fs.readFileSync(path, "utf8"));
+	// // If no CHARACTER_JSON, proceed with file-based loading
+	// if (charactersArg) {
+	//   let characterPaths = charactersArg.split(",").map((filePath) => {
+	//     if (path.basename(filePath) === filePath) {
+	//       filePath = "../characters/" + filePath;
+	//     }
+	//     return path.resolve(process.cwd(), filePath.trim());
+	//   });
 
-        validateCharacterConfig(character);
+	//   if (characterPaths?.length > 0) {
+	//     for (const path of characterPaths) {
+	//       try {
+	//         const character = JSON.parse(fs.readFileSync(path, "utf8"));
+	//         validateCharacterConfig(character);
+	//         loadedCharacters.push(character);
+	//       } catch (e) {
+	//         console.error(`Error loading character from ${path}: ${e}`);
+	//         process.exit(1);
+	//       }
+	//     }
+	//   }
+	// }
 
-        loadedCharacters.push(character);
-      } catch (e) {
-        console.error(`Error loading character from ${path}: ${e}`);
-        // don't continue to load if a specified file is not found
-        process.exit(1);
-      }
-    }
-  }
-
-  return loadedCharacters;
+	return loadedCharacters;
 }
 
 export function getTokenForProvider(
-  provider: ModelProviderName,
-  character: Character
+	provider: ModelProviderName,
+	character: Character,
 ) {
-  switch (provider) {
-    case ModelProviderName.OPENAI:
-      return (
-        character.settings?.secrets?.OPENAI_API_KEY || settings.OPENAI_API_KEY
-      );
-    case ModelProviderName.LLAMACLOUD:
-      return (
-        character.settings?.secrets?.LLAMACLOUD_API_KEY ||
-        settings.LLAMACLOUD_API_KEY ||
-        character.settings?.secrets?.TOGETHER_API_KEY ||
-        settings.TOGETHER_API_KEY ||
-        character.settings?.secrets?.XAI_API_KEY ||
-        settings.XAI_API_KEY ||
-        character.settings?.secrets?.OPENAI_API_KEY ||
-        settings.OPENAI_API_KEY
-      );
-    case ModelProviderName.ANTHROPIC:
-      return (
-        character.settings?.secrets?.ANTHROPIC_API_KEY ||
-        character.settings?.secrets?.CLAUDE_API_KEY ||
-        settings.ANTHROPIC_API_KEY ||
-        settings.CLAUDE_API_KEY
-      );
-    case ModelProviderName.REDPILL:
-      return (
-        character.settings?.secrets?.REDPILL_API_KEY || settings.REDPILL_API_KEY
-      );
-    case ModelProviderName.OPENROUTER:
-      return (
-        character.settings?.secrets?.OPENROUTER || settings.OPENROUTER_API_KEY
-      );
-    case ModelProviderName.GROK:
-      return character.settings?.secrets?.GROK_API_KEY || settings.GROK_API_KEY;
-    case ModelProviderName.HEURIST:
-      return (
-        character.settings?.secrets?.HEURIST_API_KEY || settings.HEURIST_API_KEY
-      );
-    case ModelProviderName.GROQ:
-      return character.settings?.secrets?.GROQ_API_KEY || settings.GROQ_API_KEY;
-  }
+	switch (provider) {
+		case ModelProviderName.OPENAI:
+			return (
+				character.settings?.secrets?.OPENAI_API_KEY || settings.OPENAI_API_KEY
+			);
+		case ModelProviderName.LLAMACLOUD:
+			return (
+				character.settings?.secrets?.LLAMACLOUD_API_KEY ||
+				settings.LLAMACLOUD_API_KEY ||
+				character.settings?.secrets?.TOGETHER_API_KEY ||
+				settings.TOGETHER_API_KEY ||
+				character.settings?.secrets?.XAI_API_KEY ||
+				settings.XAI_API_KEY ||
+				character.settings?.secrets?.OPENAI_API_KEY ||
+				settings.OPENAI_API_KEY
+			);
+		case ModelProviderName.ANTHROPIC:
+			return (
+				character.settings?.secrets?.ANTHROPIC_API_KEY ||
+				character.settings?.secrets?.CLAUDE_API_KEY ||
+				settings.ANTHROPIC_API_KEY ||
+				settings.CLAUDE_API_KEY
+			);
+		case ModelProviderName.REDPILL:
+			return (
+				character.settings?.secrets?.REDPILL_API_KEY || settings.REDPILL_API_KEY
+			);
+		case ModelProviderName.OPENROUTER:
+			return (
+				character.settings?.secrets?.OPENROUTER || settings.OPENROUTER_API_KEY
+			);
+		case ModelProviderName.GROK:
+			return character.settings?.secrets?.GROK_API_KEY || settings.GROK_API_KEY;
+		case ModelProviderName.HEURIST:
+			return (
+				character.settings?.secrets?.HEURIST_API_KEY || settings.HEURIST_API_KEY
+			);
+		case ModelProviderName.GROQ:
+			return character.settings?.secrets?.GROQ_API_KEY || settings.GROQ_API_KEY;
+	}
 }
